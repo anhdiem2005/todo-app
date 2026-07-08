@@ -1,0 +1,54 @@
+# ===== ASP.NET Core / Visual Studio =====
+# Visual Studio cache/solution files
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build output
+bin/
+obj/
+
+# Publish output
+publish/
+*.pubxml
+*.pubxml.user
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+
+# Logs
+*.log
+*.tmp
+
+# Secrets (never commit!)
+appsettings.Production.json
+**/secrets.json
+
+# ===== Node.js / React (FE) =====
+node_modules/
+dist/
+.cache/
+.parcel-cache/
+
+# Vite
+.vite/
+
+# dotenv
+.env
+.env.local
+.env.*.local
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== IDEs =====
+.idea/
+*.swp
+*.swo

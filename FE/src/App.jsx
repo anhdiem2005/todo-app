@@ -8,22 +8,40 @@ import ViewTaskScreen from "./app/components/ViewTaskScreen";
 import CategoriesScreen from "./app/components/CategoriesScreen";
 import AccountScreen from "./app/components/AccountScreen";
 import ChangePasswordScreen from "./app/components/ChangePasswordScreen";
-import { USER, initialTasks, initialCategories } from "./app/constants/seedData";
+import { initialTasks, initialCategories } from "./app/constants/seedData";
+import { getSession, logout } from "./app/services/authService";
 
 export default function App() {
-  const [screen, setScreen] = useState("login");
+  const [user, setUser] = useState(getSession);
+  const [screen, setScreen] = useState(user ? "dashboard" : "login");
   const [tasks, setTasks] = useState(initialTasks);
   const [categories] = useState(initialCategories);
   const [viewedTask, setViewedTask] = useState(null);
 
+  const handleLogin = (authData) => {
+    setUser({ id: authData.id, name: authData.name, email: authData.email });
+    setScreen("dashboard");
+  };
+
+  const handleRegister = (authData) => {
+    setUser({ id: authData.id, name: authData.name, email: authData.email });
+    setScreen("dashboard");
+  };
+
+  const handleLogout = () => {
+    logout();
+    setUser(null);
+    setScreen("login");
+  };
+
   const addTask = (t) => {
     setTasks(prev => [...prev, { ...t, id: Date.now(), subtasks: [] }]);
   };
-  
+
   const editTask = (id, t) => {
     setTasks(prev => prev.map(p => p.id === id ? { ...p, ...t } : p));
   };
-  
+
   const updateTask = (t) => {
     setTasks(prev => prev.map(p => p.id === t.id ? t : p));
     setViewedTask(t);
@@ -34,11 +52,13 @@ export default function App() {
     setScreen(s);
   };
 
-  if (screen === "login") return <LoginScreen onLogin={() => setScreen("dashboard")} onSwitch={() => setScreen("register")} />;
-  if (screen === "register") return <RegisterScreen onRegister={() => setScreen("dashboard")} onSwitch={() => setScreen("login")} />;
+  if (screen === "login")
+    return <LoginScreen onLogin={handleLogin} onSwitch={() => setScreen("register")} />;
+  if (screen === "register")
+    return <RegisterScreen onRegister={handleRegister} onSwitch={() => setScreen("login")} />;
 
   const mainContent = () => {
-    if (screen === "dashboard") return <DashboardScreen tasks={tasks} user={USER} />;
+    if (screen === "dashboard") return <DashboardScreen tasks={tasks} user={user} />;
     if (screen === "my-task") {
       if (viewedTask) {
         return <ViewTaskScreen task={viewedTask} onBack={() => setViewedTask(null)} onUpdate={updateTask} />;
@@ -53,7 +73,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden w-full" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-      <Sidebar screen={screen} onNav={handleNav} user={USER} />
+      <Sidebar screen={screen} onNav={handleNav} user={user} onLogout={handleLogout} />
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {mainContent()}
       </main>

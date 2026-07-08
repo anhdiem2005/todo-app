@@ -1,13 +1,38 @@
 import React, { useState } from "react";
-import { CheckSquare, Eye, EyeOff } from "lucide-react";
+import { CheckSquare, Eye, EyeOff, Loader2 } from "lucide-react";
+import { login, saveSession } from "../services/authService";
 
 export default function LoginScreen({ onLogin, onSwitch }) {
   const [showPass, setShowPass] = useState(false);
-  const [email, setEmail] = useState("maya@studio.co");
-  const [pass, setPass] = useState("••••••••");
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (!email.trim() || !pass.trim()) {
+      setError("Vui lòng nhập đầy đủ email và mật khẩu.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const data = await login({ email, password: pass });
+      saveSession(data);
+      onLogin(data);
+    } catch (err) {
+      setError(err.message || "Đăng nhập thất bại. Vui lòng thử lại.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex w-full" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+      {/* Left panel */}
       <div className="hidden lg:flex w-1/2 bg-primary flex-col items-center justify-center p-12 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-white/5 -translate-y-1/3 translate-x-1/3" />
         <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full bg-white/8 translate-y-1/3 -translate-x-1/3" />
@@ -31,6 +56,7 @@ export default function LoginScreen({ onLogin, onSwitch }) {
         </div>
       </div>
 
+      {/* Right panel */}
       <div className="flex-1 flex items-center justify-center bg-background px-8">
         <div className="w-full max-w-md">
           <div className="mb-8">
@@ -41,44 +67,69 @@ export default function LoginScreen({ onLogin, onSwitch }) {
             <p className="text-muted-foreground text-sm mt-1 text-left">Sign in to your account to continue</p>
           </div>
 
-          <div className="space-y-4 text-left">
+          <form onSubmit={handleSubmit} className="space-y-4 text-left">
+            {/* Error message */}
+            {error && (
+              <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium">
+                {error}
+              </div>
+            )}
+
             <div>
               <label className="text-sm font-semibold text-foreground mb-1.5 block">Email address</label>
               <input
+                id="login-email"
+                type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl bg-input-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
                 placeholder="you@example.com"
+                autoComplete="email"
+                required
               />
             </div>
+
             <div>
               <label className="text-sm font-semibold text-foreground mb-1.5 block">Password</label>
               <div className="relative">
                 <input
+                  id="login-password"
                   type={showPass ? "text" : "password"}
                   value={pass}
                   onChange={e => setPass(e.target.value)}
                   className="w-full px-4 py-3 pr-12 rounded-xl bg-input-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
                   placeholder="••••••••"
+                  autoComplete="current-password"
+                  required
                 />
-                <button onClick={() => setShowPass(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                <button
+                  type="button"
+                  onClick={() => setShowPass(p => !p)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
                   {showPass ? <EyeOff size={17} /> : <Eye size={17} />}
                 </button>
               </div>
             </div>
+
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
                 <input type="checkbox" className="rounded accent-primary" defaultChecked /> Remember me
               </label>
-              <button className="text-sm text-primary font-semibold hover:underline">Forgot password?</button>
+              <button type="button" className="text-sm text-primary font-semibold hover:underline">Forgot password?</button>
             </div>
+
             <button
-              onClick={onLogin}
-              className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-bold text-sm hover:opacity-90 active:scale-[0.99] transition-all shadow-lg shadow-primary/25"
+              id="login-submit"
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-bold text-sm hover:opacity-90 active:scale-[0.99] transition-all shadow-lg shadow-primary/25 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Sign In
+              {loading ? (
+                <><Loader2 size={16} className="animate-spin" /> Signing in...</>
+              ) : "Sign In"}
             </button>
-          </div>
+          </form>
 
           <p className="text-center text-sm text-muted-foreground mt-6">
             {"Don't have an account? "}
