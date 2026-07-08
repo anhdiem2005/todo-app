@@ -108,7 +108,6 @@ namespace BETodoList.Controllers
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        [Authorize]
         [HttpPut("update-profile")]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto dto)
         {
@@ -130,7 +129,6 @@ namespace BETodoList.Controllers
             return Ok(new { message = "Cập nhật thông tin thành công!", name = user.Name });
         }
 
-        [Authorize]
         [HttpPut("change-password")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
         {

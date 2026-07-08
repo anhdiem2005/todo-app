@@ -2,8 +2,12 @@ const API_BASE = "/api";
 
 function getAuthHeaders() {
   const token = localStorage.getItem("auth_token");
+  const user = getSession();
+  const userId = user?.id;
+
   return {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(userId ? { "X-User-Id": String(userId) } : {}),
   };
 }
 

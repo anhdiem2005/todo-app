@@ -11,7 +11,6 @@ namespace BETodoList.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
     public class TasksController : ControllerBase
     {
         private readonly AppDbContext _db;
