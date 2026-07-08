@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:5260/api";
+const API_BASE = "/api";
 
 /**
  * Đăng ký tài khoản mới
