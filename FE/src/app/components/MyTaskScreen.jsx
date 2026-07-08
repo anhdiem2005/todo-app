@@ -7,7 +7,7 @@ import PriorityBadge from "./PriorityBadge";
 import { fmt } from "../utils/helpers";
 
 export default function MyTaskScreen({
-  tasks, onAdd, onView, onEdit, onDelete, onToggle,
+  tasks, loading, onAdd, onView, onEdit, onDelete, onToggle,
   categories,
 }) {
   const [modal, setModal] = useState(false);
@@ -15,10 +15,14 @@ export default function MyTaskScreen({
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
 
-  const filtered = tasks.filter(t =>
-    (filter === "All" || t.status === filter) &&
-    (t.title.toLowerCase().includes(search.toLowerCase()) || t.category.toLowerCase().includes(search.toLowerCase()))
-  );
+  const filtered = (tasks || []).filter(t => {
+    const normalizedStatus = (t.status || "To Do").toLowerCase();
+    const normalizedFilter = filter.toLowerCase();
+    const matchesFilter = filter === "All" || normalizedStatus === normalizedFilter || (filter === "To Do" && normalizedStatus === "to do") || (filter === "In Progress" && normalizedStatus === "in progress") || (filter === "Done" && normalizedStatus === "done");
+    const title = (t.title || "").toLowerCase();
+    const category = (t.category || "").toLowerCase();
+    return matchesFilter && (title.includes(search.toLowerCase()) || category.includes(search.toLowerCase()));
+  });
 
   const openAddModal = () => {
     setEditingTask(null);
@@ -60,7 +64,10 @@ export default function MyTaskScreen({
           </div>
 
           <div className="space-y-3">
-            {filtered.length === 0 && (
+            {loading && (
+              <div className="text-center py-16 text-muted-foreground text-sm">Loading tasks...</div>
+            )}
+            {!loading && filtered.length === 0 && (
               <div className="text-center py-16 text-muted-foreground text-sm">No tasks found.</div>
             )}
             {filtered.map(t => (

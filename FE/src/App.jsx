@@ -8,20 +8,32 @@ import ViewTaskScreen from "./app/components/ViewTaskScreen";
 import CategoriesScreen from "./app/components/CategoriesScreen";
 import AccountScreen from "./app/components/AccountScreen";
 import ChangePasswordScreen from "./app/components/ChangePasswordScreen";
-import { initialTasks, initialCategories } from "./app/constants/seedData";
-import { getSession, logout } from "./app/services/authService";
-import { addTaskToList, deleteTaskFromList, loadTasksFromStorage, saveTasksToStorage, toggleTaskStatus, updateTaskInList } from "./app/utils/taskStorage";
+import { initialCategories } from "./app/constants/seedData";
+import { createTask, deleteTask as deleteTaskApi, getTasks, updateTask as updateTaskApi, getSession, logout } from "./app/services/authService";
 
 export default function App() {
   const [user, setUser] = useState(getSession);
   const [screen, setScreen] = useState(user ? "dashboard" : "login");
-  const [tasks, setTasks] = useState(() => loadTasksFromStorage(initialTasks));
+  const [tasks, setTasks] = useState([]);
   const [categories] = useState(initialCategories);
   const [viewedTask, setViewedTask] = useState(null);
+  const [loadingTasks, setLoadingTasks] = useState(false);
 
   useEffect(() => {
-    saveTasksToStorage(tasks);
-  }, [tasks]);
+    if (!user) return;
+    const load = async () => {
+      try {
+        setLoadingTasks(true);
+        const data = await getTasks();
+        setTasks(data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoadingTasks(false);
+      }
+    };
+    load();
+  }, [user]);
 
   const handleLogin = (authData) => {
     setUser({ id: authData.id, name: authData.name, email: authData.email });
@@ -39,28 +51,56 @@ export default function App() {
     setScreen("login");
   };
 
-  const addTask = (t) => {
-    setTasks(prev => addTaskToList(prev, t));
-  };
-
-  const editTask = (id, t) => {
-    setTasks(prev => updateTaskInList(prev, id, t));
-  };
-
-  const deleteTask = (id) => {
-    setTasks(prev => deleteTaskFromList(prev, id));
-    if (viewedTask?.id === id) {
-      setViewedTask(null);
+  const addTask = async (t) => {
+    try {
+      const created = await createTask(t);
+      setTasks(prev => [created, ...prev]);
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  const toggleTask = (id) => {
-    setTasks(prev => toggleTaskStatus(prev, id));
+  const editTask = async (id, t) => {
+    try {
+      const updated = await updateTaskApi(id, t);
+      setTasks(prev => prev.map(task => task.id === id ? updated : task));
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const updateTask = (t) => {
-    setTasks(prev => updateTaskInList(prev, t.id, t));
-    setViewedTask(t);
+  const deleteTask = async (id) => {
+    try {
+      await deleteTaskApi(id);
+      setTasks(prev => prev.filter(task => task.id !== id));
+      if (viewedTask?.id === id) {
+        setViewedTask(null);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const toggleTask = async (id) => {
+    const current = tasks.find(task => task.id === id);
+    if (!current) return;
+    const nextStatus = current.status === "Done" ? "To Do" : "Done";
+    try {
+      const updated = await updateTaskApi(id, { ...current, status: nextStatus });
+      setTasks(prev => prev.map(task => task.id === id ? updated : task));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const updateTask = async (t) => {
+    try {
+      const updated = await updateTaskApi(t.id, t);
+      setTasks(prev => prev.map(task => task.id === t.id ? updated : task));
+      setViewedTask(updated);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleNav = (s) => {
@@ -79,7 +119,7 @@ export default function App() {
       if (viewedTask) {
         return <ViewTaskScreen task={viewedTask} onBack={() => setViewedTask(null)} onUpdate={updateTask} />;
       }
-      return <MyTaskScreen tasks={tasks} onAdd={addTask} onView={t => setViewedTask(t)} onEdit={editTask} onDelete={deleteTask} onToggle={toggleTask} categories={categories} />;
+      return <MyTaskScreen tasks={tasks} loading={loadingTasks} onAdd={addTask} onView={t => setViewedTask(t)} onEdit={editTask} onDelete={deleteTask} onToggle={toggleTask} categories={categories} />;
     }
     if (screen === "categories") return <CategoriesScreen categories={categories} tasks={tasks} />;
     if (screen === "account") return <AccountScreen />;

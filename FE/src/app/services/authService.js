@@ -1,5 +1,37 @@
 const API_BASE = "/api";
 
+function getAuthHeaders() {
+  const token = localStorage.getItem("auth_token");
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+async function request(path, options = {}) {
+  const headers = {
+    ...getAuthHeaders(),
+    ...(options.headers || {}),
+  };
+
+  if (options.body && !headers["Content-Type"] && !headers["content-type"]) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers,
+  });
+
+  const contentType = res.headers.get("content-type") || "";
+  const payload = contentType.includes("application/json") ? await res.json() : await res.text();
+
+  if (!res.ok) {
+    throw new Error(typeof payload === "string" ? payload : payload?.message || "Yêu cầu thất bại.");
+  }
+
+  return typeof payload === "string" ? payload : payload;
+}
+
 /**
  * Đăng ký tài khoản mới
  * @param {{ name: string, email: string, password: string }} data
@@ -66,4 +98,28 @@ export function getSession() {
 export function logout() {
   localStorage.removeItem("auth_token");
   localStorage.removeItem("auth_user");
+}
+
+export async function getTasks() {
+  return request("/tasks");
+}
+
+export async function createTask(taskData) {
+  return request("/tasks", {
+    method: "POST",
+    body: JSON.stringify(taskData),
+  });
+}
+
+export async function updateTask(id, taskData) {
+  return request(`/tasks/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(taskData),
+  });
+}
+
+export async function deleteTask(id) {
+  return request(`/tasks/${id}`, {
+    method: "DELETE",
+  });
 }

@@ -76,7 +76,17 @@ export default function TaskModal({
             Cancel
           </button>
           <button
-            onClick={() => { onSave({ title, description: desc, category: cat, priority, status, dueDate: due }); onClose(); }}
+            onClick={() => {
+              onSave({
+                title,
+                description: desc,
+                category: cat,
+                priority: priority.toLowerCase(),
+                status: status.toLowerCase(),
+                dueDate: due,
+              });
+              onClose();
+            }}
             className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-all shadow-md shadow-primary/20 text-center"
           >
             Save Task
