@@ -8,10 +8,12 @@ namespace BETodoList.DTOs
         [Required(ErrorMessage = "Tiêu đề không được để trống.")]
         public string Title { get; set; } = string.Empty;
         public string? Description { get; set; }
-        public string Status { get; set; } = "To Do"; // "To Do", "In Progress", "Done"
-        public string Priority { get; set; } = "Medium"; // "Low", "Medium", "High"
+        public string Status { get; set; } = "To Do";
+        public string Priority { get; set; } = "Medium";
         public int? CategoryId { get; set; }
-        public string? DueDate { get; set; } // Sử dụng kiểu string (format "yyyy-MM-dd") để Frontend dễ truyền nhận từ thẻ <input type="date">
+        public string? Category { get; set; } 
+        public string? DueDate { get; set; }
+        public List<SubtaskDto> Subtasks { get; set; } = new List<SubtaskDto>();
     }
 
     public class TaskCreateUpdateDto
@@ -22,6 +24,22 @@ namespace BETodoList.DTOs
         public string Status { get; set; } = "To Do";
         public string Priority { get; set; } = "Medium";
         public int? CategoryId { get; set; }
+        public string? Category { get; set; }
         public string? DueDate { get; set; }
+        public List<SubtaskCreateUpdateDto> Subtasks { get; set; } = new List<SubtaskCreateUpdateDto>();
+    }
+
+    public class SubtaskDto
+    {
+        public int Id { get; set; }
+        public string Label { get; set; } = string.Empty;
+        public bool Done { get; set; } 
+    }
+
+    public class SubtaskCreateUpdateDto
+    {
+        [Required]
+        public string Label { get; set; } = string.Empty;
+        public bool Done { get; set; }
     }
 }
