@@ -1,17 +1,17 @@
-using BETodoList.Data;
-using BETodoList.DTOs;
-using BETodoList.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.JsonWebTokens;
 using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
+using BETodoList.Data;
+using BETodoList.Models;
+using BETodoList.DTOs;
 
 namespace BETodoList.Controllers
 {
+    [Authorize] // Bắt buộc phải đăng nhập mới dùng được các API này
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
     public class TasksController : ControllerBase
     {
         private readonly AppDbContext _db;
@@ -21,139 +21,7 @@ namespace BETodoList.Controllers
             _db = db;
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetTasks()
-        {
-            var userId = GetCurrentUserId();
-            if (userId is null)
-                return Unauthorized(new { message = "User not authenticated." });
-
-            var tasks = await _db.Tasks
-                .Where(t => t.UserId == userId)
-                .Include(t => t.Category)
-                .Include(t => t.Subtasks)
-                .OrderByDescending(t => t.CreatedAt)
-                .ToListAsync();
-
-            var dto = tasks.Select(MapToDto).ToList();
-            return Ok(dto);
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> CreateTask([FromBody] TaskCreateUpdateDto dto)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var userId = GetCurrentUserId();
-            if (userId is null)
-                return Unauthorized(new { message = "User not authenticated." });
-
-            var category = await GetOrCreateCategoryAsync(userId.Value, dto.Category);
-
-            var task = new TaskItem
-            {
-                UserId = userId.Value,
-                CategoryId = category?.Id,
-                Title = dto.Title.Trim(),
-                Description = dto.Description?.Trim(),
-                Priority = NormalizePriority(dto.Priority),
-                Status = NormalizeStatus(dto.Status),
-                DueDate = ParseDueDate(dto.DueDate),
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
-                Subtasks = new List<SubtaskItem>()
-            };
-
-            if (dto.Subtasks != null)
-            {
-                task.Subtasks = dto.Subtasks
-                    .Where(s => !string.IsNullOrWhiteSpace(s.Label))
-                    .Select(s => new SubtaskItem
-                    {
-                        Label = s.Label.Trim(),
-                        IsDone = s.Done,
-                        CreatedAt = DateTime.UtcNow
-                    })
-                    .ToList();
-            }
-
-            _db.Tasks.Add(task);
-            await _db.SaveChangesAsync();
-
-            var created = await _db.Tasks
-                .Include(t => t.Category)
-                .Include(t => t.Subtasks)
-                .FirstOrDefaultAsync(t => t.Id == task.Id);
-
-            return Ok(MapToDto(created!));
-        }
-
-        [HttpPut("{id:int}")]
-        public async Task<IActionResult> UpdateTask(int id, [FromBody] TaskCreateUpdateDto dto)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var userId = GetCurrentUserId();
-            if (userId is null)
-                return Unauthorized(new { message = "User not authenticated." });
-
-            var task = await _db.Tasks
-                .Include(t => t.Subtasks)
-                .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
-
-            if (task is null)
-                return NotFound(new { message = "Task not found." });
-
-            var category = await GetOrCreateCategoryAsync(userId.Value, dto.Category);
-
-            task.Title = dto.Title.Trim();
-            task.Description = dto.Description?.Trim();
-            task.CategoryId = category?.Id;
-            task.Priority = NormalizePriority(dto.Priority);
-            task.Status = NormalizeStatus(dto.Status);
-            task.DueDate = ParseDueDate(dto.DueDate);
-            task.UpdatedAt = DateTime.UtcNow;
-
-            _db.Subtasks.RemoveRange(task.Subtasks);
-            task.Subtasks = (dto.Subtasks ?? new List<SubtaskInputDto>())
-                .Where(s => !string.IsNullOrWhiteSpace(s.Label))
-                .Select(s => new SubtaskItem
-                {
-                    Label = s.Label.Trim(),
-                    IsDone = s.Done,
-                    CreatedAt = DateTime.UtcNow
-                })
-                .ToList();
-
-            await _db.SaveChangesAsync();
-
-            var updated = await _db.Tasks
-                .Include(t => t.Category)
-                .Include(t => t.Subtasks)
-                .FirstOrDefaultAsync(t => t.Id == id);
-
-            return Ok(MapToDto(updated!));
-        }
-
-        [HttpDelete("{id:int}")]
-        public async Task<IActionResult> DeleteTask(int id)
-        {
-            var userId = GetCurrentUserId();
-            if (userId is null)
-                return Unauthorized(new { message = "User not authenticated." });
-
-            var task = await _db.Tasks.FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
-            if (task is null)
-                return NotFound(new { message = "Task not found." });
-
-            _db.Tasks.Remove(task);
-            await _db.SaveChangesAsync();
-
-            return Ok(new { message = "Task deleted successfully." });
-        }
-
+        // Lấy ID của User từ JWT Token một cách an toàn
         private int? GetCurrentUserId()
         {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier)
@@ -163,76 +31,124 @@ namespace BETodoList.Controllers
             return int.TryParse(claim, out var id) ? id : null;
         }
 
-        private async Task<Category?> GetOrCreateCategoryAsync(int userId, string? categoryName)
+        // 1. LẤY DANH SÁCH TASK CỦA USER (ĐÃ SỬA LỖI DÒNG 43)
+        [HttpGet]
+        public async Task<IActionResult> GetTasks()
         {
-            if (string.IsNullOrWhiteSpace(categoryName))
-                return null;
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(new { message = "User not authenticated." });
 
-            var normalizedName = categoryName.Trim();
-            var existing = await _db.Categories.FirstOrDefaultAsync(c => c.UserId == userId && c.Name == normalizedName);
-            if (existing is not null)
-                return existing;
+            var tasks = await _db.Tasks
+                .Where(t => t.UserId == userId)
+                .OrderByDescending(t => t.CreatedAt)
+                .Select(t => new TaskDto
+                {
+                    Id = t.Id,
+                    Title = t.Title,
+                    Description = t.Description,
+                    Status = t.Status, // Sử dụng Status ("To Do", "In Progress", "Done") thay vì IsCompleted
+                    Priority = t.Priority,
+                    DueDate = t.DueDate.HasValue ? t.DueDate.Value.ToString("yyyy-MM-dd") : null
+                })
+                .ToListAsync();
 
-            var category = new Category
+            return Ok(tasks);
+        }
+
+        // 2. TẠO TASK MỚI (ĐÃ SỬA LỖI DÒNG 55 VÀ 67 - THÊM TASK<> VÀ ĐỒNG BỘ STATUS)
+        [HttpPost]
+        public async Task<ActionResult<TaskDto>> CreateTask([FromBody] TaskCreateUpdateDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Title))
+                return BadRequest(new { message = "Tiêu đề không được để trống." });
+
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(new { message = "User not authenticated." });
+
+            var task = new TaskItem
             {
-                UserId = userId,
-                Name = normalizedName,
-                Color = "#3B82F6",
-                CreatedAt = DateTime.UtcNow
+                UserId = userId.Value,
+                Title = dto.Title.Trim(),
+                Description = dto.Description?.Trim(),
+                Priority = dto.Priority ?? "Medium",
+                Status = dto.Status ?? "To Do", // Khởi tạo mặc định trạng thái chuỗi
+                DueDate = DateTime.TryParse(dto.DueDate, out var parsedDate) ? parsedDate : null,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
             };
 
-            _db.Categories.Add(category);
+            _db.Tasks.Add(task);
             await _db.SaveChangesAsync();
-            return category;
-        }
 
-        private static string NormalizePriority(string? priority)
-        {
-            return priority?.Trim().ToLowerInvariant() switch
-            {
-                "high" => "High",
-                "low" => "Low",
-                _ => "Medium"
-            };
-        }
-
-        private static string NormalizeStatus(string? status)
-        {
-            return status?.Trim().ToLowerInvariant() switch
-            {
-                "done" => "Done",
-                "in progress" => "In Progress",
-                "in_progress" => "In Progress",
-                "to do" => "To Do",
-                _ => "To Do"
-            };
-        }
-
-        private static DateTime? ParseDueDate(string? dueDate)
-        {
-            if (string.IsNullOrWhiteSpace(dueDate))
-                return null;
-
-            return DateTime.TryParse(dueDate, out var parsed) ? parsed : null;
-        }
-
-        private static TaskDto MapToDto(TaskItem task)
-        {
-            return new TaskDto
+            var result = new TaskDto
             {
                 Id = task.Id,
                 Title = task.Title,
                 Description = task.Description,
-                Category = task.Category?.Name ?? "General",
-                Priority = task.Priority,
                 Status = task.Status,
-                DueDate = task.DueDate?.ToString("yyyy-MM-dd"),
-                Subtasks = task.Subtasks.Select(s => new SubtaskDto
-                {
-                    Label = s.Label,
-                    Done = s.IsDone
-                }).ToList()
+                Priority = task.Priority,
+                DueDate = task.DueDate.HasValue ? task.DueDate.Value.ToString("yyyy-MM-dd") : null
             };
+
+            return Ok(result);
+        }
+
+        // 3. CẬP NHẬT TASK (ĐÃ SỬA LỖI DÒNG 82)
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> UpdateTask(int id, [FromBody] TaskCreateUpdateDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Title))
+                return BadRequest(new { message = "Tiêu đề không được để trống." });
+
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(new { message = "User not authenticated." });
+
+            var task = await _db.Tasks.FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
+            if (task == null)
+                return NotFound(new { message = "Không tìm thấy công việc." });
+
+            // Cập nhật thông tin thực tế khớp cấu trúc Database gốc
+            task.Title = dto.Title.Trim();
+            task.Description = dto.Description?.Trim();
+            task.Status = dto.Status ?? "To Do";
+            task.Priority = dto.Priority ?? "Medium";
+            task.DueDate = DateTime.TryParse(dto.DueDate, out var parsedDate) ? parsedDate : null;
+            task.UpdatedAt = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync();
+
+            var result = new TaskDto
+            {
+                Id = task.Id,
+                Title = task.Title,
+                Description = task.Description,
+                Status = task.Status,
+                Priority = task.Priority,
+                DueDate = task.DueDate.HasValue ? task.DueDate.Value.ToString("yyyy-MM-dd") : null
+            };
+
+            return Ok(result);
+        }
+
+        // 4. XÓA TASK (ĐÃ SỬA LỖI DÒNG 102)
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> DeleteTask(int id)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(new { message = "User not authenticated." });
+
+            var task = await _db.Tasks.FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
+            if (task == null)
+                return NotFound(new { message = "Không tìm thấy công việc để xóa." });
+
+            _db.Tasks.Remove(task);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { message = "Xóa công việc thành công." });
         }
     }
 }
