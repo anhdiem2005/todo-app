@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Sidebar from "./app/components/Sidebar";
 import LoginScreen from "./app/components/LoginScreen";
 import RegisterScreen from "./app/components/RegisterScreen";
@@ -10,13 +10,18 @@ import AccountScreen from "./app/components/AccountScreen";
 import ChangePasswordScreen from "./app/components/ChangePasswordScreen";
 import { initialTasks, initialCategories } from "./app/constants/seedData";
 import { getSession, logout } from "./app/services/authService";
+import { addTaskToList, deleteTaskFromList, loadTasksFromStorage, saveTasksToStorage, toggleTaskStatus, updateTaskInList } from "./app/utils/taskStorage";
 
 export default function App() {
   const [user, setUser] = useState(getSession);
   const [screen, setScreen] = useState(user ? "dashboard" : "login");
-  const [tasks, setTasks] = useState(initialTasks);
+  const [tasks, setTasks] = useState(() => loadTasksFromStorage(initialTasks));
   const [categories] = useState(initialCategories);
   const [viewedTask, setViewedTask] = useState(null);
+
+  useEffect(() => {
+    saveTasksToStorage(tasks);
+  }, [tasks]);
 
   const handleLogin = (authData) => {
     setUser({ id: authData.id, name: authData.name, email: authData.email });
@@ -35,15 +40,26 @@ export default function App() {
   };
 
   const addTask = (t) => {
-    setTasks(prev => [...prev, { ...t, id: Date.now(), subtasks: [] }]);
+    setTasks(prev => addTaskToList(prev, t));
   };
 
   const editTask = (id, t) => {
-    setTasks(prev => prev.map(p => p.id === id ? { ...p, ...t } : p));
+    setTasks(prev => updateTaskInList(prev, id, t));
+  };
+
+  const deleteTask = (id) => {
+    setTasks(prev => deleteTaskFromList(prev, id));
+    if (viewedTask?.id === id) {
+      setViewedTask(null);
+    }
+  };
+
+  const toggleTask = (id) => {
+    setTasks(prev => toggleTaskStatus(prev, id));
   };
 
   const updateTask = (t) => {
-    setTasks(prev => prev.map(p => p.id === t.id ? t : p));
+    setTasks(prev => updateTaskInList(prev, t.id, t));
     setViewedTask(t);
   };
 
@@ -63,7 +79,7 @@ export default function App() {
       if (viewedTask) {
         return <ViewTaskScreen task={viewedTask} onBack={() => setViewedTask(null)} onUpdate={updateTask} />;
       }
-      return <MyTaskScreen tasks={tasks} onAdd={addTask} onView={t => setViewedTask(t)} onEdit={editTask} categories={categories} />;
+      return <MyTaskScreen tasks={tasks} onAdd={addTask} onView={t => setViewedTask(t)} onEdit={editTask} onDelete={deleteTask} onToggle={toggleTask} categories={categories} />;
     }
     if (screen === "categories") return <CategoriesScreen categories={categories} tasks={tasks} />;
     if (screen === "account") return <AccountScreen />;

@@ -7,10 +7,11 @@ import PriorityBadge from "./PriorityBadge";
 import { fmt } from "../utils/helpers";
 
 export default function MyTaskScreen({
-  tasks, onAdd, onView, onEdit,
+  tasks, onAdd, onView, onEdit, onDelete, onToggle,
   categories,
 }) {
   const [modal, setModal] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
 
@@ -19,9 +20,29 @@ export default function MyTaskScreen({
     (t.title.toLowerCase().includes(search.toLowerCase()) || t.category.toLowerCase().includes(search.toLowerCase()))
   );
 
+  const openAddModal = () => {
+    setEditingTask(null);
+    setModal(true);
+  };
+
+  const openEditModal = (task) => {
+    setEditingTask(task);
+    setModal(true);
+  };
+
+  const handleSave = (taskData) => {
+    if (editingTask) {
+      onEdit(editingTask.id, taskData);
+    } else {
+      onAdd(taskData);
+    }
+    setModal(false);
+    setEditingTask(null);
+  };
+
   return (
     <>
-      <TaskModal open={modal} onClose={() => setModal(false)} onSave={onAdd} categories={categories} />
+      <TaskModal open={modal} initial={editingTask} onClose={() => { setModal(false); setEditingTask(null); }} onSave={handleSave} categories={categories} />
       <div className="flex flex-col h-full text-left">
         <Header title="My Tasks" onSearch={setSearch} />
         <div className="flex-1 overflow-y-auto p-6">
@@ -33,7 +54,7 @@ export default function MyTaskScreen({
                 </button>
               ))}
             </div>
-            <button onClick={() => setModal(true)} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-bold hover:opacity-90 transition-all shadow-md shadow-primary/20">
+            <button onClick={openAddModal} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-bold hover:opacity-90 transition-all shadow-md shadow-primary/20">
               <Plus size={16} /> Add Task
             </button>
           </div>
@@ -46,7 +67,7 @@ export default function MyTaskScreen({
               <div key={t.id} className="bg-card rounded-2xl p-4 border border-border shadow-sm hover:shadow-md transition-all group">
                 <div className="flex items-start gap-3">
                   <button
-                    onClick={() => onEdit(t.id, { ...t, status: t.status === "Done" ? "To Do" : "Done" })}
+                    onClick={() => onToggle(t.id)}
                     className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${t.status === "Done" ? "border-emerald-500 bg-emerald-500 text-white" : "border-muted-foreground/40 hover:border-primary"}`}
                   >
                     {t.status === "Done" && <CheckCircle2 size={12} />}
@@ -56,9 +77,10 @@ export default function MyTaskScreen({
                       <button onClick={() => onView(t)} className="text-sm font-semibold text-foreground hover:text-primary transition-colors text-left">
                         {t.title}
                       </button>
-                      <button className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground">
-                        <MoreHorizontal size={15} />
-                      </button>
+                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => openEditModal(t)} className="text-xs font-semibold text-primary hover:underline">Edit</button>
+                        <button onClick={() => onDelete(t.id)} className="text-xs font-semibold text-red-500 hover:underline">Delete</button>
+                      </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 mt-2">
                       <StatusBadge status={t.status} />
