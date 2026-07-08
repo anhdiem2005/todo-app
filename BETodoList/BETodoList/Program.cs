@@ -2,19 +2,15 @@ using BETodoList.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
 using System.Text;
-
-JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- Database ---
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
-// --- CORS: cho phép FE React ---
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -28,22 +24,22 @@ builder.Services.AddCors(options =>
               .AllowCredentials());
 });
 
-// --- JWT Authentication ---
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "TodoAppDefaultSecretKey_ChangeMe_2026!";
+var jwtKey = builder.Configuration["Jwt:Key"] ?? "TodoAppSuperSecretKey_MustBe32CharsMin_2026!";
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = false,
-            ValidateAudience = false,
+            ValidateIssuer = true,
+            ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "TodoApp",
+            ValidAudience = builder.Configuration["Jwt:Audience"] ?? "TodoAppUsers",
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-            NameClaimType = "sub",
-            RoleClaimType = "role"
+            NameClaimType = ClaimTypes.NameIdentifier,
+            RoleClaimType = ClaimTypes.Role
         };
-        options.MapInboundClaims = false;
     });
 
 builder.Services.AddControllers();
@@ -58,7 +54,6 @@ using (var scope = app.Services.CreateScope())
     db.Database.EnsureCreated();
 }
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

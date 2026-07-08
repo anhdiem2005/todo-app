@@ -61,7 +61,6 @@ namespace BETodoList.Controllers
             });
         }
 
-        // POST api/auth/login
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
@@ -79,21 +78,21 @@ namespace BETodoList.Controllers
                 Id = user.Id,
                 Name = user.Name,
                 Email = user.Email,
-                Token = GenerateJwt(user)
+                Token = GenerateJwt(user) 
             });
         }
 
         private string GenerateJwt(User user)
         {
-            var jwtKey = _config["Jwt:Key"] ?? "TodoAppDefaultSecretKey_ChangeMe_2026!";
+            var jwtKey = _config["Jwt:Key"] ?? "TodoAppSuperSecretKey_MustBe32CharsMin_2026!";
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var claims = new[]
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                new Claim("name", user.Name),
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()), 
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Name, user.Name),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
@@ -101,7 +100,7 @@ namespace BETodoList.Controllers
                 issuer: _config["Jwt:Issuer"] ?? "TodoApp",
                 audience: _config["Jwt:Audience"] ?? "TodoAppUsers",
                 claims: claims,
-                expires: DateTime.UtcNow.AddDays(7),
+                expires: DateTime.UtcNow.AddDays(7), 
                 signingCredentials: creds
             );
 
