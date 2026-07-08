@@ -123,3 +123,17 @@ export async function deleteTask(id) {
     method: "DELETE",
   });
 }
+
+export async function updateProfile(data) {
+  return request("/auth/update-profile", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function changePassword(data) {
+  return request("/auth/change-password", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}

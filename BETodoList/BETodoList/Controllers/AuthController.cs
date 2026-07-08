@@ -1,6 +1,7 @@
 using BETodoList.Data;
 using BETodoList.DTOs;
 using BETodoList.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -106,5 +107,65 @@ namespace BETodoList.Controllers
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
+        [Authorize]
+        [HttpPut("update-profile")]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                              ?? User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
+
+            if (!int.TryParse(userIdClaim, out int userId))
+                return Unauthorized(new { message = "Phiên đăng nhập không hợp lệ." });
+
+            var user = await _db.Users.FindAsync(userId);
+            if (user == null) return NotFound(new { message = "Không tìm thấy người dùng." });
+
+            user.Name = dto.Name.Trim();
+            await _db.SaveChangesAsync();
+
+            return Ok(new { message = "Cập nhật thông tin thành công!", name = user.Name });
+        }
+
+        [Authorize]
+        [HttpPut("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                              ?? User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
+
+            if (!int.TryParse(userIdClaim, out int userId))
+                return Unauthorized(new { message = "Phiên đăng nhập không hợp lệ." });
+
+            var user = await _db.Users.FindAsync(userId);
+            if (user == null) return NotFound(new { message = "Không tìm thấy người dùng." });
+
+            // Sử dụng BCrypt để verify mật khẩu cũ giống như lúc Đăng nhập
+            if (!BCrypt.Net.BCrypt.Verify(dto.CurrentPassword, user.PasswordHash))
+                return BadRequest(new { message = "Mật khẩu hiện tại không chính xác." });
+
+            if (dto.NewPassword.Length < 6)
+                return BadRequest(new { message = "Mật khẩu mới phải từ 6 ký tự trở lên." });
+
+            // Mã hóa mật khẩu mới trước khi lưu xuống bảng users
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { message = "Đổi mật khẩu thành công!" });
+        }
+    }
+    public class UpdateProfileDto
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class ChangePasswordDto
+    {
+        public string CurrentPassword { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
     }
 }
