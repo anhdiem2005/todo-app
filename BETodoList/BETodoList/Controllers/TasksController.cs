@@ -4,6 +4,7 @@ using BETodoList.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.JsonWebTokens;
 using System.Security.Claims;
 
 namespace BETodoList.Controllers
@@ -155,7 +156,10 @@ namespace BETodoList.Controllers
 
         private int? GetCurrentUserId()
         {
-            var claim = User.FindFirstValue("sub") ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var claim = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub)
+                ?? User.FindFirstValue("sub");
+
             return int.TryParse(claim, out var id) ? id : null;
         }
 
