@@ -36,12 +36,14 @@ export default function App() {
   }, [user]);
 
   const handleLogin = (authData) => {
-    setUser({ id: authData.id, name: authData.name, email: authData.email });
+    const nextUser = { id: authData.id, name: authData.name, email: authData.email };
+    setUser(nextUser);
     setScreen("dashboard");
   };
 
   const handleRegister = (authData) => {
-    setUser({ id: authData.id, name: authData.name, email: authData.email });
+    const nextUser = { id: authData.id, name: authData.name, email: authData.email };
+    setUser(nextUser);
     setScreen("dashboard");
   };
 

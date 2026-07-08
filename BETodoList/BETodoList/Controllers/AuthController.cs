@@ -114,7 +114,8 @@ namespace BETodoList.Controllers
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            var userIdClaim = User.FindFirst("sub")?.Value
+                              ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
                               ?? User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
 
             if (!int.TryParse(userIdClaim, out int userId))
@@ -135,7 +136,8 @@ namespace BETodoList.Controllers
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            var userIdClaim = User.FindFirst("sub")?.Value
+                              ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
                               ?? User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
 
             if (!int.TryParse(userIdClaim, out int userId))

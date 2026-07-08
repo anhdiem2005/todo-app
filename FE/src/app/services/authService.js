@@ -22,6 +22,13 @@ async function request(path, options = {}) {
     headers,
   });
 
+  // Nếu backend trả về 401, xóa session cũ để tránh trạng thái login lỗi
+  if (res.status === 401) {
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("auth_user");
+    throw new Error("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại.");
+  }
+
   const contentType = res.headers.get("content-type") || "";
   const payload = contentType.includes("application/json") ? await res.json() : await res.text();
 
@@ -84,11 +91,16 @@ export function saveSession(authData) {
   }));
 }
 
-/** Lấy user đang đăng nhập */
 export function getSession() {
   try {
+    const token = localStorage.getItem("auth_token");
     const user = localStorage.getItem("auth_user");
-    return user ? JSON.parse(user) : null;
+    
+    if (!token || !user) {
+      return null;
+    }
+    
+    return JSON.parse(user);
   } catch {
     return null;
   }

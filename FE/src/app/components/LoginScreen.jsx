@@ -21,6 +21,9 @@ export default function LoginScreen({ onLogin, onSwitch }) {
     setLoading(true);
     try {
       const data = await login({ email, password: pass });
+      if (!data?.token) {
+        throw new Error("Đăng nhập không trả về token hợp lệ.");
+      }
       saveSession(data);
       onLogin(data);
     } catch (err) {
