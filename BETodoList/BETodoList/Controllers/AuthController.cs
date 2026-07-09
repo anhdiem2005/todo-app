@@ -84,7 +84,7 @@ namespace BETodoList.Controllers
 
         private string GenerateJwt(User user)
         {
-            var jwtKey = _config["Jwt:Key"] ?? "TodoAppSuperSecretKey_MustBe32CharsMin_2026!";
+            var jwtKey = "TodoAppSuperSecretKey_MustBe32CharsMin_2026!";
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
@@ -97,8 +97,8 @@ namespace BETodoList.Controllers
             };
 
             var token = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"] ?? "TodoApp",
-                audience: _config["Jwt:Audience"] ?? "TodoAppUsers",
+                issuer: "TodoApp",
+                audience: "TodoAppUsers",
                 claims: claims,
                 expires: DateTime.UtcNow.AddDays(7), 
                 signingCredentials: creds
@@ -107,6 +107,7 @@ namespace BETodoList.Controllers
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
+        [Authorize]
         [HttpPut("update-profile")]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto dto)
         {
@@ -128,6 +129,7 @@ namespace BETodoList.Controllers
             return Ok(new { message = "Cập nhật thông tin thành công!", name = user.Name });
         }
 
+        [Authorize]
         [HttpPut("change-password")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
         {

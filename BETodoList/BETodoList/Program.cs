@@ -34,11 +34,31 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "TodoApp",
-            ValidAudience = builder.Configuration["Jwt:Audience"] ?? "TodoAppUsers",
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-            NameClaimType = ClaimTypes.NameIdentifier,
+
+            ValidIssuer = "TodoApp",
+            ValidAudience = "TodoAppUsers",
+
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtKey)
+            ),
+
             RoleClaimType = ClaimTypes.Role
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                Console.WriteLine("Authorization Header:");
+                Console.WriteLine(context.Request.Headers.Authorization.ToString());
+                return Task.CompletedTask;
+            },
+
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine(context.Exception);
+                return Task.CompletedTask;
+            }
         };
     });
 

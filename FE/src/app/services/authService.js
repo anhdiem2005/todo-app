@@ -21,24 +21,31 @@ async function request(path, options = {}) {
     headers["Content-Type"] = "application/json";
   }
 
+  console.log("===== REQUEST =====");
+  console.log("URL:", `${API_BASE}${path}`);
+  console.log("Token:", localStorage.getItem("auth_token"));
+  console.log("Headers:", headers);
+
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
   });
 
-  // Nếu backend trả về 401, xóa session cũ và reload để đưa người dùng về màn hình login
-  if (res.status === 401) {
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("auth_user");
-    window.location.reload(); 
-    throw new Error("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại.");
-  }
+  console.log("Status:", res.status);
 
   const contentType = res.headers.get("content-type") || "";
-  const payload = contentType.includes("application/json") ? await res.json() : await res.text();
+  const payload = contentType.includes("application/json")
+    ? await res.json()
+    : await res.text();
+
+  console.log("Response:", payload);
 
   if (!res.ok) {
-    throw new Error(typeof payload === "string" ? payload : payload?.message || "Yêu cầu thất bại.");
+    throw new Error(
+      typeof payload === "string"
+        ? payload
+        : payload?.message || "Yêu cầu thất bại."
+    );
   }
 
   return payload;

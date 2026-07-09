@@ -9,7 +9,7 @@ using BETodoList.DTOs;
 
 namespace BETodoList.Controllers
 {
-    [Authorize] // Bắt buộc phải đăng nhập mới dùng được các API này
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class TasksController : ControllerBase
@@ -20,18 +20,17 @@ namespace BETodoList.Controllers
         {
             _db = db;
         }
-
-        // Lấy ID của User từ JWT Token một cách an toàn
+        
         private int? GetCurrentUserId()
         {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier)
-                ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub)
-                ?? User.FindFirstValue("sub");
+                ?? User.FindFirstValue("sub")
+                ?? User.FindFirstValue("id")
+                ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
             return int.TryParse(claim, out var id) ? id : null;
         }
 
-        // 1. LẤY DANH SÁCH TASK CỦA USER (ĐÃ SỬA LỖI DÒNG 43)
         [HttpGet]
         public async Task<IActionResult> GetTasks()
         {
